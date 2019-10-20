@@ -1,27 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct 19 09:29:24 2019
+Created on Sun Oct 20 13:54:24 2019
 
 @author: SRIJAN
 """
 
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 df = pd.read_csv('dataset/train_E6oV3lV.csv', encoding='latin-1')
 df.head()
 
-sns.countplot(df.label)
-plt.xlabel('Label')
-plt.ylabel('Number of Tweets')
-
 df['length'] = df['tweet'].apply(len)
-mpl.rcParams['patch.force_edgecolor'] = True
-plt.style.use('seaborn-bright')
-df.hist(column='length', by='label', bins=50, figsize=(11,5))
 
 hate_words = ['hate', 'kill', 'racist', 'racism', 'black', 'motherfucker', 'white','libtard', 'amp', 'misogynist']
 
@@ -67,21 +57,19 @@ def preprocess_text(text):
 df['processed_text'] = df.tweet.apply(lambda row : preprocess_text(row))
 df.head()
 
-def hate_label(text):
-    
-    for term in text.split():
-        if term in hate_words:
-            return 1
-        else:
-            continue
-        
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.model_selection import train_test_split
 
-df['hate_label'] = df.processed_text.apply(lambda row : hate_label(row))
-df['hate_label'] = df['hate_label'].fillna(0)
-df.head()
+tfidf_vec = TfidfVectorizer(ngram_range=(1,2))
+tfidf_data = tfidf_vec.fit_transform(df.processed_text)
+#tfidf_data = pd.DataFrame(tfidf_data)
+#tfidf_data.head()
 
-df.hist(column='hate_label', by='label', bins=50, figsize=(11,5))
+X_train, X_test, y_train, y_test = train_test_split(tfidf_data, df['label'], test_size=0.0, random_state = 42)
 
+spam_filter = MultinomialNB(alpha=0.2)
+spam_filter.fit(X_train, y_train)
 
 
 
@@ -89,6 +77,36 @@ df.hist(column='hate_label', by='label', bins=50, figsize=(11,5))
 
 
 
+"""
+
+# ------------------------Testing-------------------------------"
+
+predictions = spam_filter.predict(X_test).tolist()
+wrong = []
+count = 0
+for i in range(len(y_test)):
+    if y_test.iloc[i] != predictions[i]:
+        count += 1
+        wrong.append(i)
+
+      
+print('Total number of test cases', len(y_test))
+print('Number of wrong of predictions', count)
+
+from sklearn.metrics import classification_report
+print(classification_report(predictions, y_test))
+
+text = "yoyas market deming nm sell beer white said closed hispanic walked n sold"
+
+text = [preprocess_text(text)]
+t = tfidf_vec.transform(text)
+
+spam_filter.predict(t)[0]
+
+"""
 
 
-    
+
+
+
+
